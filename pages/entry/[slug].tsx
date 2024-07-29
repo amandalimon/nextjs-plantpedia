@@ -1,52 +1,108 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
-import { QueryStatus } from '@api/index'
+import { getPlant, QueryStatus } from '@api/index'
 
-import { Layout } from '@components/Layout'
+import { getPlantList } from '@api/index'
+
+import { GetStaticPaths, GetStaticProps, InferGetStaticPropsType } from 'next'
+
 import { Typography } from '@ui/Typography'
 import { Grid } from '@ui/Grid'
+import { Layout } from '@components/Layout'
 import { RichText } from '@components/RichText'
 import { AuthorCard } from '@components/AuthorCard'
-import { getPlant } from '@api/index'
 
-export default function PlantEntryPage() {
-    const [status, setStatus] = useState<QueryStatus>('idle')
-    const [plant, setPlant] = useState<Plant | null>(null)
+// Definir getStaticPaths para especificar las rutas dinámicas que deben ser pre-renderizadas.
+type PathType = {
+    params: {
+        slug: string
+    }
+}
 
-    const router = useRouter()
-    const slug = router.query.slug
+export const getStaticPaths = async () => {
+    const entries = await getPlantList({ limit: 10 })
 
-    useEffect(() => {
-        if (typeof slug !== 'string') {
-            return
+    const paths: PathType[] = entries.map(plant => ({
+        params: {
+            slug: plant.slug
         }
-        getPlant(slug)
-            .then((receivedData) => {
-                setPlant(receivedData)
-                setStatus('success')
-            })
-            .catch(() => {
-                setStatus('error')
-            })
-    }, [slug])
+    }))
 
-    if (status === 'loading' || status === 'idle') {
-        return (
-            <Layout>
-                <main>
-                    Loading awesomeness..
-                </main>
-            </Layout>
-        )
+    return {
+        paths,
+        fallback: false
+    }
+}
+
+// Definir getStaticProps para obtener los datos necesarios para cada ruta en tiempo de compilación.
+
+type PlantEntryProps = {
+    plant: Plant
+}
+
+export const getStaticProps: GetStaticProps<PlantEntryProps> = async ({ params }) => {
+    const slug = params?.slug
+
+    if (typeof slug !== 'string') {
+        return {
+            notFound: true
+        }
     }
 
-    if (plant === null || status === 'error') {
-        return (
-            <Layout>
-                <main>Error 404</main>
-            </Layout>
-        )
+    try {
+        const plant = await getPlant(slug)
+
+        return {
+            props: {
+                plant
+            }
+        }
+    } catch (error) {
+        return {
+            notFound: true
+        }
     }
+}
+
+export default function PlantEntryPage({ plant }: InferGetStaticPropsType<typeof getStaticProps>) {
+    // const [status, setStatus] = useState<QueryStatus>('idle')
+
+    // const [plant, setPlant] = useState<Plant | null>(null)
+
+    // const router = useRouter()
+    // const slug = router.query.slug
+
+    // useEffect(() => {
+    //     if (typeof slug !== 'string') {
+    //         return
+    //     }
+    //     getPlant(slug)
+    //         .then((receivedData) => {
+    //             setPlant(receivedData)
+    //             setStatus('success')
+    //         })
+    //         .catch(() => {
+    //             setStatus('error')
+    //         })
+    // }, [slug])
+
+    // if (status === 'loading' || status === 'idle') {
+    //     return (
+    //         <Layout>
+    //             <main>
+    //                 Loading awesomeness..
+    //             </main>
+    //         </Layout>
+    //     )
+    // }
+
+    // if (plant === null || status === 'error') {
+    //     return (
+    //         <Layout>
+    //             <main>Error 404</main>
+    //         </Layout>
+    //     )
+    // }
 
     return (
         <Layout>
